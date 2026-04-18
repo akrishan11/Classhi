@@ -32,7 +32,7 @@ export function SignUpPage() {
       if (e.name === 'UsernameExistsException') {
         setError('An account with this email already exists. Log in instead.');
       } else if (e.name === 'InvalidPasswordException') {
-        setError('Password must be at least 8 characters.');
+        setError('Password must be at least 8 characters and include uppercase, lowercase, and a number.');
       } else {
         setError('Something went wrong. Please try again.');
       }
@@ -82,7 +82,7 @@ export function SignUpPage() {
               id="password"
               type="password"
               autoComplete="new-password"
-              placeholder="At least 8 characters"
+              placeholder="8+ chars, uppercase, lowercase, number"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
