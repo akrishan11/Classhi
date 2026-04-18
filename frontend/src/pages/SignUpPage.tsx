@@ -28,13 +28,13 @@ export function SignUpPage() {
         navigate('/confirm', { state: { email } });
       }
     } catch (err: unknown) {
-      const e = err as { name?: string };
+      const e = err as { name?: string; message?: string };
       if (e.name === 'UsernameExistsException') {
         setError('An account with this email already exists. Log in instead.');
       } else if (e.name === 'InvalidPasswordException') {
-        setError('Password must be at least 8 characters and include uppercase, lowercase, and a number.');
+        setError(e.message ?? 'Password must be at least 8 characters and include uppercase, lowercase, and a number.');
       } else {
-        setError('Something went wrong. Please try again.');
+        setError(e.message ?? 'Something went wrong. Please try again.');
       }
     } finally {
       setLoading(false);
