@@ -34,7 +34,7 @@ Resources:
           RequireLowercase: true
           RequireNumbers: true
           RequireSymbols: false
-      MfaConfiguration: "OPTIONAL"
+      MfaConfiguration: "OFF"
       Schema:
         - Name: email
           AttributeDataType: String
