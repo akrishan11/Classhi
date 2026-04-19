@@ -1,15 +1,16 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { useAuth } from '../auth/AuthContext';
-import { apiFetch } from '../lib/api';
-import { useMarketWS, type PriceUpdate } from '../hooks/useMarketWS';
-import { NavBar } from '../components/NavBar';
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { useAuth } from "../auth/AuthContext";
+import { apiFetch } from "../lib/api";
+import { useMarketWS, type PriceUpdate } from "../hooks/useMarketWS";
+import { MarketPriceChart } from "../components/MarketPriceChart";
+import { NavBar } from "../components/NavBar";
 
 interface Market {
   marketId: string;
   title: string;
   description: string;
-  status: 'scheduled' | 'open' | 'closed' | 'resolved';
+  status: "scheduled" | "open" | "closed" | "resolved";
   yesPrice: number;
   noPrice: number;
   volume: number;
@@ -19,9 +20,15 @@ interface Market {
   createdBy: string;
 }
 
+type PricePoint = {
+  timestamp: number;
+  yesPrice: number;
+  noPrice: number;
+};
+
 function formatDetailed(closeAt: string): string {
   const diff = new Date(closeAt).getTime() - Date.now();
-  if (diff <= 0) return 'Closed';
+  if (diff <= 0) return "Closed";
   const h = Math.floor(diff / 3600000);
   const m = Math.floor((diff % 3600000) / 60000);
   const s = Math.floor((diff % 60000) / 1000);
@@ -29,17 +36,53 @@ function formatDetailed(closeAt: string): string {
   if (h > 0) parts.push(`${h}h`);
   parts.push(`${m}m`);
   parts.push(`${s}s`);
-  return parts.join(' ');
+  return parts.join(" ");
 }
 
-function StatusBadge({ status }: { status: Market['status'] }) {
-  const isOpen = status === 'open';
+function seedMarketHistory(market: Market, count = 30): PricePoint[] {
+  const now = Date.now();
+  if (market.volume === 0) {
+    return Array.from({ length: count }, (_, index) => ({
+      timestamp: now - (count - 1 - index) * 1500,
+      yesPrice: market.yesPrice,
+      noPrice: market.noPrice,
+    }));
+  }
+
+  const baseYes = market.yesPrice;
+  const baseNo = market.noPrice;
+  const spread = Math.abs(baseYes - baseNo);
+  const crossover = Math.max(14, Math.min(26, spread + 12));
+
+  const yesStart = baseYes + crossover / 2;
+  const yesEnd = baseYes - crossover / 2;
+  const noStart = baseNo - crossover / 2;
+  const noEnd = baseNo + crossover / 2;
+  const amplitude = Math.max(4, Math.min(12, Math.round(spread * 0.15) + 4));
+
+  return Array.from({ length: count }, (_, index) => {
+    const progress = index / Math.max(count - 1, 1);
+    const yesTrend = yesStart + (yesEnd - yesStart) * progress;
+    const noTrend = noStart + (noEnd - noStart) * progress;
+    const wave = Math.sin(progress * Math.PI * 2) * amplitude;
+    const noise = Math.sin(progress * Math.PI * 7) * 1.5;
+
+    return {
+      timestamp: now - (count - 1 - index) * 1500,
+      yesPrice: Math.max(1, Math.round(yesTrend + wave + noise)),
+      noPrice: Math.max(1, Math.round(noTrend - wave + noise)),
+    };
+  });
+}
+
+function StatusBadge({ status }: { status: Market["status"] }) {
+  const isOpen = status === "open";
   return (
     <span
       className={`inline-block rounded-full px-4 py-1.5 text-sm font-bold uppercase ${
         isOpen
-          ? 'bg-classhi-green text-white'
-          : 'bg-gray-200 text-gray-700 dark:bg-[#28282C] dark:text-gray-300'
+          ? "bg-classhi-green text-white"
+          : "bg-gray-200 text-gray-700 dark:bg-[#28282C] dark:text-gray-300"
       }`}
     >
       {status}
@@ -47,7 +90,7 @@ function StatusBadge({ status }: { status: Market['status'] }) {
   );
 }
 
-type Side = 'YES' | 'NO' | null;
+type Side = "YES" | "NO" | null;
 
 export function MarketDetailPage() {
   const { marketId } = useParams<{ marketId: string }>();
@@ -57,31 +100,41 @@ export function MarketDetailPage() {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [error, setError] = useState(false);
-  const [timeLeft, setTimeLeft] = useState('');
+  const [timeLeft, setTimeLeft] = useState("");
 
   const [side, setSide] = useState<Side>(null);
-  const [amountText, setAmountText] = useState('');
+  const [amountText, setAmountText] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  const [flashSide, setFlashSide] = useState<'YES' | 'NO' | 'BOTH' | null>(null);
+  const [flashSide, setFlashSide] = useState<"YES" | "NO" | "BOTH" | null>(
+    null,
+  );
   const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const [resolving, setResolving] = useState<'YES' | 'NO' | null>(null);
+  const [resolving, setResolving] = useState<"YES" | "NO" | null>(null);
   const [resolveError, setResolveError] = useState<string | null>(null);
+  const [priceHistory, setPriceHistory] = useState<PricePoint[]>([]);
+  const [lastUpdate, setLastUpdate] = useState<number | null>(null);
 
   const handleSignOut = async () => {
     await signOut();
-    navigate('/login', { replace: true });
+    navigate("/login", { replace: true });
   };
 
   const handlePriceUpdate = useCallback((update: PriceUpdate) => {
+    const nextPoint = {
+      timestamp: Date.now(),
+      yesPrice: update.yesPrice,
+      noPrice: update.noPrice,
+    };
+
     setMarket((prev) => {
       if (!prev) return prev;
       const yesMoved = update.yesPrice !== prev.yesPrice;
       const noMoved = update.noPrice !== prev.noPrice;
-      const newSide: 'YES' | 'NO' | 'BOTH' | null =
-        yesMoved && noMoved ? 'BOTH' : yesMoved ? 'YES' : noMoved ? 'NO' : null;
+      const newSide: "YES" | "NO" | "BOTH" | null =
+        yesMoved && noMoved ? "BOTH" : yesMoved ? "YES" : noMoved ? "NO" : null;
       if (newSide) {
         if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
         setFlashSide(newSide);
@@ -89,6 +142,9 @@ export function MarketDetailPage() {
       }
       return { ...prev, yesPrice: update.yesPrice, noPrice: update.noPrice };
     });
+
+    setPriceHistory((prev) => [...prev.slice(-59), nextPoint]);
+    setLastUpdate(nextPoint.timestamp);
   }, []);
 
   useMarketWS(marketId, idToken, handlePriceUpdate);
@@ -102,10 +158,12 @@ export function MarketDetailPage() {
           if (!cancelled) setNotFound(true);
           return;
         }
-        if (!res.ok) throw new Error('non-ok response');
+        if (!res.ok) throw new Error("non-ok response");
         const data = (await res.json()) as { market: Market };
         if (!cancelled) {
           setMarket(data.market);
+          setPriceHistory(seedMarketHistory(data.market, 30));
+          setLastUpdate(Date.now());
           setTimeLeft(formatDetailed(data.market.closeAt));
         }
       } catch {
@@ -122,7 +180,7 @@ export function MarketDetailPage() {
 
   useEffect(() => {
     if (!market) return;
-    if (market.status !== 'open' && market.status !== 'scheduled') return;
+    if (market.status !== "open" && market.status !== "scheduled") return;
     const interval = setInterval(() => {
       setTimeLeft(formatDetailed(market.closeAt));
     }, 1000);
@@ -157,18 +215,22 @@ export function MarketDetailPage() {
     );
   }
 
-  const showCountdown = market.status === 'open' || market.status === 'scheduled';
+  const showCountdown =
+    market.status === "open" || market.status === "scheduled";
   const amountNum = Number(amountText);
   const amountValid = Number.isFinite(amountNum) && amountNum > 0;
-  const sidePrice = side === 'YES' ? market.yesPrice : side === 'NO' ? market.noPrice : null;
+  const sidePrice =
+    side === "YES" ? market.yesPrice : side === "NO" ? market.noPrice : null;
   const estimatedShares =
     side && amountValid && sidePrice && sidePrice > 0
       ? Math.round((amountNum / (sidePrice / 100)) * 100) / 100
       : null;
-  const estimatedPayout = estimatedShares != null ? estimatedShares * 1.0 : null;
+  const estimatedPayout =
+    estimatedShares != null ? estimatedShares * 1.0 : null;
   const exceedsBalance = amountValid && balance != null && amountNum > balance;
-  const ctaEnabled = side != null && amountValid && !exceedsBalance && !submitting;
-  const isMarketOpen = market.status === 'open';
+  const ctaEnabled =
+    side != null && amountValid && !exceedsBalance && !submitting;
+  const isMarketOpen = market.status === "open";
 
   async function handleSubmit() {
     if (!ctaEnabled || side == null || !marketId) return;
@@ -176,12 +238,16 @@ export function MarketDetailPage() {
     setSubmitError(null);
     try {
       const res = await apiFetch(`/markets/${marketId}/bets`, idToken, {
-        method: 'POST',
+        method: "POST",
         body: JSON.stringify({ side, amount: amountNum }),
       });
       if (!res.ok) {
-        const errData = (await res.json().catch(() => ({}))) as { error?: string };
-        setSubmitError(errData.error ?? 'Failed to place bet. Please try again.');
+        const errData = (await res.json().catch(() => ({}))) as {
+          error?: string;
+        };
+        setSubmitError(
+          errData.error ?? "Failed to place bet. Please try again.",
+        );
         return;
       }
       const data = (await res.json()) as {
@@ -189,36 +255,40 @@ export function MarketDetailPage() {
         noPrice: number;
         newBalance: number | null;
       };
-      setMarket({ ...(market as Market), yesPrice: data.yesPrice, noPrice: data.noPrice });
+      setMarket({
+        ...(market as Market),
+        yesPrice: data.yesPrice,
+        noPrice: data.noPrice,
+      });
       setSide(null);
-      setAmountText('');
+      setAmountText("");
       await refreshSession();
     } catch {
-      setSubmitError('Failed to place bet. Please try again.');
+      setSubmitError("Failed to place bet. Please try again.");
     } finally {
       setSubmitting(false);
     }
   }
 
-  async function handleResolve(outcome: 'YES' | 'NO') {
+  async function handleResolve(outcome: "YES" | "NO") {
     if (!marketId || resolving !== null) return;
     setResolving(outcome);
     setResolveError(null);
     try {
       const res = await apiFetch(`/markets/${marketId}/resolve`, idToken, {
-        method: 'POST',
+        method: "POST",
         body: JSON.stringify({ outcome }),
       });
       if (res.status === 409) {
-        setResolveError('This market has already been resolved.');
+        setResolveError("This market has already been resolved.");
         return;
       }
       if (res.status === 403) {
-        setResolveError('Admin access required.');
+        setResolveError("Admin access required.");
         return;
       }
       if (!res.ok) {
-        setResolveError('Failed to resolve market. Please try again.');
+        setResolveError("Failed to resolve market. Please try again.");
         return;
       }
       // Success: re-fetch market so status becomes 'resolved' and panel disappears
@@ -228,25 +298,25 @@ export function MarketDetailPage() {
         setMarket(data.market);
       }
     } catch {
-      setResolveError('Failed to resolve market. Please try again.');
+      setResolveError("Failed to resolve market. Please try again.");
     } finally {
       setResolving(null);
     }
   }
 
   const ctaLabel = submitting
-    ? 'Placing bet...'
+    ? "Placing bet..."
     : side == null
-    ? 'Place a bet'
-    : amountValid
-    ? `Bet ${side} — $${amountNum}`
-    : `Bet ${side}`;
+      ? "Place a bet"
+      : amountValid
+        ? `Bet ${side} — $${amountNum}`
+        : `Bet ${side}`;
   const ctaBg =
-    side === 'YES'
-      ? 'bg-classhi-green'
-      : side === 'NO'
-      ? 'bg-classhi-coral'
-      : 'bg-gray-300 dark:bg-[#28282C]';
+    side === "YES"
+      ? "bg-classhi-green"
+      : side === "NO"
+        ? "bg-classhi-coral"
+        : "bg-gray-300 dark:bg-[#28282C]";
 
   return (
     <div className="min-h-screen bg-classhi-bg dark:bg-dark-bg">
@@ -255,7 +325,7 @@ export function MarketDetailPage() {
       <main className="mx-auto max-w-2xl px-6 py-8">
         <button
           type="button"
-          onClick={() => navigate('/markets')}
+          onClick={() => navigate("/markets")}
           className="mb-6 text-sm text-gray-500 hover:text-[#111111] dark:text-[#8A8A90] dark:hover:text-white"
         >
           ← Markets
@@ -265,44 +335,64 @@ export function MarketDetailPage() {
           <StatusBadge status={market.status} />
         </div>
 
-        <h1 className="text-2xl font-condensed font-bold tracking-tight text-[#111111] dark:text-white">{market.title}</h1>
+        <h1 className="text-2xl font-condensed font-bold tracking-tight text-[#111111] dark:text-white">
+          {market.title}
+        </h1>
 
         {market.description && (
-          <p className="mt-2 text-base text-gray-500 dark:text-[#8A8A90]">{market.description}</p>
+          <p className="mt-2 text-base text-gray-500 dark:text-[#8A8A90]">
+            {market.description}
+          </p>
         )}
 
+        <div className="mt-6">
+          <MarketPriceChart
+            history={priceHistory}
+            lastUpdate={lastUpdate}
+            inactive={market.volume === 0}
+          />
+        </div>
+
         {showCountdown && (
-          <p className="mt-3 text-sm text-gray-500 dark:text-[#8A8A90]">Closes in {timeLeft}</p>
+          <p className="mt-3 text-sm text-gray-500 dark:text-[#8A8A90]">
+            Closes in {timeLeft}
+          </p>
         )}
 
         {isMarketOpen ? (
           <section className="mt-6 rounded-lg border border-gray-200 bg-white p-5 dark:border-dark-border dark:bg-dark-card">
-            <h2 className="text-xl font-condensed font-semibold text-[#111111] dark:text-white">Place a bet</h2>
+            <h2 className="text-xl font-condensed font-semibold text-[#111111] dark:text-white">
+              Place a bet
+            </h2>
 
             {/* Combined price display + side selector — clicking selects that side */}
             <div aria-live="polite" className="mt-4 flex gap-3">
               <button
                 type="button"
-                onClick={() => setSide(side === 'YES' ? null : 'YES')}
+                onClick={() => setSide(side === "YES" ? null : "YES")}
                 className={`flex-1 rounded-full py-2 text-sm font-ticker font-bold transition-all ${
-                  flashSide === 'YES' || flashSide === 'BOTH' ? 'animate-flash-green' : ''
+                  flashSide === "YES" || flashSide === "BOTH"
+                    ? "animate-flash-green"
+                    : ""
                 } ${
-                  side === 'YES'
-                    ? 'bg-classhi-green text-white ring-2 ring-classhi-green ring-offset-2 ring-offset-white dark:ring-offset-dark-card'
-                    : 'border-2 border-classhi-green bg-transparent text-classhi-green hover:bg-classhi-green/10'
+                  side === "YES"
+                    ? "bg-classhi-green text-white ring-2 ring-classhi-green ring-offset-2 ring-offset-white dark:ring-offset-dark-card"
+                    : "border-2 border-classhi-green bg-transparent text-classhi-green hover:bg-classhi-green/10"
                 }`}
               >
                 Yes {market.yesPrice}¢
               </button>
               <button
                 type="button"
-                onClick={() => setSide(side === 'NO' ? null : 'NO')}
+                onClick={() => setSide(side === "NO" ? null : "NO")}
                 className={`flex-1 rounded-full py-2 text-sm font-ticker font-bold transition-all ${
-                  flashSide === 'NO' || flashSide === 'BOTH' ? 'animate-flash-coral' : ''
+                  flashSide === "NO" || flashSide === "BOTH"
+                    ? "animate-flash-coral"
+                    : ""
                 } ${
-                  side === 'NO'
-                    ? 'bg-classhi-coral text-white ring-2 ring-classhi-coral ring-offset-2 ring-offset-white dark:ring-offset-dark-card'
-                    : 'border-2 border-classhi-coral bg-transparent text-classhi-coral hover:bg-classhi-coral/10'
+                  side === "NO"
+                    ? "bg-classhi-coral text-white ring-2 ring-classhi-coral ring-offset-2 ring-offset-white dark:ring-offset-dark-card"
+                    : "border-2 border-classhi-coral bg-transparent text-classhi-coral hover:bg-classhi-coral/10"
                 }`}
               >
                 No {market.noPrice}¢
@@ -310,7 +400,9 @@ export function MarketDetailPage() {
             </div>
 
             <div className="mt-4">
-              <label className="block text-sm font-semibold text-[#111111] dark:text-white">Amount</label>
+              <label className="block text-sm font-semibold text-[#111111] dark:text-white">
+                Amount
+              </label>
               <input
                 type="number"
                 min={1}
@@ -329,18 +421,23 @@ export function MarketDetailPage() {
 
             {exceedsBalance && balance != null ? (
               <p className="mt-4 text-sm text-classhi-coral">
-                Insufficient balance. Your balance is ${balance.toLocaleString()}.
+                Insufficient balance. Your balance is $
+                {balance.toLocaleString()}.
               </p>
             ) : estimatedShares != null && estimatedPayout != null ? (
               <div className="mt-4 space-y-1">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-500 dark:text-[#8A8A90]">Estimated shares</span>
+                  <span className="text-sm text-gray-500 dark:text-[#8A8A90]">
+                    Estimated shares
+                  </span>
                   <span className="text-sm font-semibold text-[#111111] dark:text-white">
                     {estimatedShares.toFixed(2)} shares
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-500 dark:text-[#8A8A90]">Estimated payout</span>
+                  <span className="text-sm text-gray-500 dark:text-[#8A8A90]">
+                    Estimated payout
+                  </span>
                   <span className="text-sm font-semibold text-classhi-green">
                     ${estimatedPayout.toFixed(2)}
                   </span>
@@ -361,28 +458,30 @@ export function MarketDetailPage() {
               {ctaLabel}
             </button>
           </section>
-        ) : isAdmin && market.status === 'closed' ? (
+        ) : isAdmin && market.status === "closed" ? (
           <section className="mt-6 rounded-lg border border-gray-200 bg-white p-5 dark:border-dark-border dark:bg-dark-card">
-            <h2 className="text-xl font-condensed font-semibold text-[#111111] dark:text-white">Resolve Market</h2>
+            <h2 className="text-xl font-condensed font-semibold text-[#111111] dark:text-white">
+              Resolve Market
+            </h2>
             <p className="mt-1 text-sm text-gray-500 dark:text-[#8A8A90]">
               Select the winning outcome. This action is irreversible.
             </p>
             <div className="mt-4 flex gap-3">
               <button
                 type="button"
-                onClick={() => handleResolve('YES')}
+                onClick={() => handleResolve("YES")}
                 disabled={resolving !== null}
                 className="h-11 flex-1 rounded-lg bg-classhi-green text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60"
               >
-                {resolving === 'YES' ? 'Resolving...' : 'Resolve YES'}
+                {resolving === "YES" ? "Resolving..." : "Resolve YES"}
               </button>
               <button
                 type="button"
-                onClick={() => handleResolve('NO')}
+                onClick={() => handleResolve("NO")}
                 disabled={resolving !== null}
                 className="h-11 flex-1 rounded-lg bg-classhi-coral text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60"
               >
-                {resolving === 'NO' ? 'Resolving...' : 'Resolve NO'}
+                {resolving === "NO" ? "Resolving..." : "Resolve NO"}
               </button>
             </div>
             {resolveError && (
@@ -390,7 +489,9 @@ export function MarketDetailPage() {
             )}
           </section>
         ) : (
-          <p className="mt-6 text-sm text-gray-500 dark:text-[#8A8A90]">Betting is closed for this market.</p>
+          <p className="mt-6 text-sm text-gray-500 dark:text-[#8A8A90]">
+            Betting is closed for this market.
+          </p>
         )}
       </main>
     </div>
