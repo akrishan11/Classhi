@@ -29,7 +29,7 @@ function formatTimeLeft(closeAt: string): string {
 
 export function MarketListPage() {
   const navigate = useNavigate();
-  const { isAdmin, idToken, signOut } = useAuth();
+  const { idToken, signOut } = useAuth();
   const [markets, setMarkets] = useState<Market[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);

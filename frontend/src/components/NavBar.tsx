@@ -1,5 +1,5 @@
 // Usage: <NavBar onSignOut={handleSignOut} />
-// Reads email, balance, isAdmin from useAuth() internally.
+// Reads email, balance from useAuth() internally.
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { ThemeToggle } from './ThemeToggle';
@@ -10,7 +10,7 @@ interface NavBarProps {
 
 export function NavBar({ onSignOut }: NavBarProps) {
   const navigate = useNavigate();
-  const { email, balance, isAdmin } = useAuth();
+  const { email, balance } = useAuth();
 
   return (
     <nav className="border-b border-gray-200 bg-white px-6 py-3 dark:border-dark-border dark:bg-dark-card">
