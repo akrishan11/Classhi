@@ -278,6 +278,7 @@ Resources:
       Environment:
         Variables:
           USERS_TABLE: !Ref UsersTable
+          ADMIN_USER_IDS: !Ref AdminUserIds
       Policies:
         - DynamoDBReadPolicy:
             TableName: !Ref UsersTable
@@ -287,6 +288,95 @@ Resources:
           Properties:
             Path: /me
             Method: GET
+            ApiId: !Ref HttpApi
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: "es2022"
+        Sourcemap: true
+        EntryPoints:
+          - handler.ts
+        External:
+          - "@aws-sdk/*"
+
+  ListMarketsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/src/handlers/list-markets/
+      Handler: handler.handler
+      Environment:
+        Variables:
+          MARKETS_TABLE: !Ref MarketsTable
+          ADMIN_USER_IDS: !Ref AdminUserIds
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref MarketsTable
+      Events:
+        ListMarkets:
+          Type: HttpApi
+          Properties:
+            Path: /markets
+            Method: GET
+            ApiId: !Ref HttpApi
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: "es2022"
+        Sourcemap: true
+        EntryPoints:
+          - handler.ts
+        External:
+          - "@aws-sdk/*"
+
+  GetMarketFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/src/handlers/get-market/
+      Handler: handler.handler
+      Environment:
+        Variables:
+          MARKETS_TABLE: !Ref MarketsTable
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref MarketsTable
+      Events:
+        GetMarket:
+          Type: HttpApi
+          Properties:
+            Path: /markets/{marketId}
+            Method: GET
+            ApiId: !Ref HttpApi
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: "es2022"
+        Sourcemap: true
+        EntryPoints:
+          - handler.ts
+        External:
+          - "@aws-sdk/*"
+
+  CreateMarketFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/src/handlers/create-market/
+      Handler: handler.handler
+      Environment:
+        Variables:
+          MARKETS_TABLE: !Ref MarketsTable
+          ADMIN_USER_IDS: !Ref AdminUserIds
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref MarketsTable
+      Events:
+        CreateMarket:
+          Type: HttpApi
+          Properties:
+            Path: /markets
+            Method: POST
             ApiId: !Ref HttpApi
     Metadata:
       BuildMethod: esbuild
