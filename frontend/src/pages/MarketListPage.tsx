@@ -46,7 +46,9 @@ function MarketCard({ market, onClick }: { market: Market; onClick: () => void }
         <div className="flex items-center justify-between">
           <div className="flex flex-col gap-1">
             <span className="text-sm font-medium text-[#111111] dark:text-white">YES</span>
-            <div className="h-[3px] w-10 rounded-full bg-classhi-green" />
+            <div className="h-[3px] w-24 rounded-full bg-gray-200 dark:bg-[#28282C]">
+              <div className="h-full rounded-full bg-classhi-green" style={{ width: `${market.yesPrice}%` }} />
+            </div>
           </div>
           <span className="rounded-full border border-classhi-green px-3 py-1 text-sm font-semibold text-classhi-green">
             {market.yesPrice}%
@@ -57,7 +59,9 @@ function MarketCard({ market, onClick }: { market: Market; onClick: () => void }
         <div className="flex items-center justify-between">
           <div className="flex flex-col gap-1">
             <span className="text-sm font-medium text-[#111111] dark:text-white">NO</span>
-            <div className="h-[3px] w-10 rounded-full bg-classhi-coral" />
+            <div className="h-[3px] w-24 rounded-full bg-gray-200 dark:bg-[#28282C]">
+              <div className="h-full rounded-full bg-classhi-coral" style={{ width: `${market.noPrice}%` }} />
+            </div>
           </div>
           <span className="rounded-full border border-classhi-coral px-3 py-1 text-sm font-semibold text-classhi-coral">
             {market.noPrice}%
