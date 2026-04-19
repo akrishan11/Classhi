@@ -3,6 +3,7 @@ import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import {
   DynamoDBDocumentClient,
   GetCommand,
+  PutCommand,
   TransactWriteCommand,
 } from "@aws-sdk/lib-dynamodb";
 
@@ -10,6 +11,7 @@ const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 const USERS_TABLE = process.env.USERS_TABLE!;
 const MARKETS_TABLE = process.env.MARKETS_TABLE!;
 const POSITIONS_TABLE = process.env.POSITIONS_TABLE!;
+const PRICE_HISTORY_TABLE = process.env.PRICE_HISTORY_TABLE!;
 
 const HEADERS = {
   "Content-Type": "application/json",
@@ -217,6 +219,12 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
       throw err;
     }
   }
+
+  // Write price snapshot (fire-and-forget — don't let this fail the bet response)
+  ddb.send(new PutCommand({
+    TableName: PRICE_HISTORY_TABLE,
+    Item: { marketId, timestamp: new Date().toISOString(), yesPrice: newYesPrice, noPrice: newNoPrice },
+  })).catch((err) => console.error('[place-bet] price history write failed', err));
 
   // Fetch updated user balance for response convenience
   const userResult = await ddb.send(

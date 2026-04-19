@@ -4,6 +4,7 @@ import { useAuth } from '../auth/AuthContext';
 import { apiFetch } from '../lib/api';
 import { useMarketWS, type PriceUpdate } from '../hooks/useMarketWS';
 import { NavBar } from '../components/NavBar';
+import { PriceChart, type PricePoint } from '../components/PriceChart';
 
 interface Market {
   marketId: string;
@@ -70,6 +71,8 @@ export function MarketDetailPage() {
   const [resolving, setResolving] = useState<'YES' | 'NO' | null>(null);
   const [resolveError, setResolveError] = useState<string | null>(null);
 
+  const [priceHistory, setPriceHistory] = useState<PricePoint[]>([]);
+
   const handleSignOut = async () => {
     await signOut();
     navigate('/login', { replace: true });
@@ -89,9 +92,25 @@ export function MarketDetailPage() {
       }
       return { ...prev, yesPrice: update.yesPrice, noPrice: update.noPrice };
     });
+    setPriceHistory((prev) => [
+      ...prev,
+      { timestamp: new Date().toISOString(), yesPrice: update.yesPrice, noPrice: update.noPrice },
+    ]);
   }, []);
 
   useMarketWS(marketId, idToken, handlePriceUpdate);
+
+  useEffect(() => {
+    if (!marketId || !idToken) return;
+    let cancelled = false;
+    apiFetch(`/markets/${marketId}/price-history`, idToken)
+      .then((res) => res.ok ? res.json() : null)
+      .then((data: { history: PricePoint[] } | null) => {
+        if (!cancelled && data?.history) setPriceHistory(data.history);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [marketId, idToken]);
 
   useEffect(() => {
     let cancelled = false;
@@ -274,6 +293,8 @@ export function MarketDetailPage() {
         {showCountdown && (
           <p className="mt-3 text-sm text-gray-500 dark:text-[#8A8A90]">Closes in {timeLeft}</p>
         )}
+
+        <PriceChart data={priceHistory} currentYesPrice={market.yesPrice} />
 
         {isMarketOpen ? (
           <section className="mt-6 rounded-lg border border-gray-200 bg-white p-5 dark:border-dark-border dark:bg-dark-card">
