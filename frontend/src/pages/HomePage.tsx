@@ -46,18 +46,18 @@ export function HomePage() {
     <div className="min-h-screen bg-classhi-bg dark:bg-dark-bg">
       <NavBar onSignOut={handleSignOut} />
 
-      <main className="mx-auto max-w-5xl px-6 py-12">
+      <main className="mx-auto max-w-3xl px-6 py-12">
 
         {/* Header */}
         <div className="mb-10">
           <img src="/logo.png" alt="Classhi" className="h-14 mb-4" />
-          <p className="text-lg text-gray-600 dark:text-[#8A8A90] max-w-2xl">
+          <p className="text-lg text-gray-600 dark:text-[#8A8A90]">
             A prediction market for CS 1660 — built for our final project.
           </p>
         </div>
 
         {/* Why section */}
-        <section className="mb-14 max-w-2xl">
+        <section className="mb-14">
           <h2 className="text-xl font-condensed font-bold text-[#111111] dark:text-white mb-4">Why we built this</h2>
           <div className="space-y-4 text-[15px] leading-relaxed text-gray-700 dark:text-[#B0B0B8]">
             <p>
@@ -89,7 +89,7 @@ export function HomePage() {
           <h2 className="text-xl font-condensed font-bold text-[#111111] dark:text-white mb-2">How a market works</h2>
 
           <div className="overflow-x-auto">
-            <div className="flex gap-6 min-w-max items-start">
+            <div className="flex gap-6 min-w-max items-start mx-auto">
 
               <Column title="Before class">
                 <Node label="Market created" sub="e.g. Will Dan say 'serverless' 5+ times?" accent />
@@ -136,7 +136,7 @@ export function HomePage() {
           <h2 className="text-xl font-condensed font-bold text-[#111111] dark:text-white mb-2">How it works under the hood</h2>
 
           <div className="overflow-x-auto">
-            <div className="flex gap-6 min-w-max items-start">
+            <div className="flex gap-6 min-w-max items-start mx-auto">
 
               <Column title="Auth">
                 <Node label="Sign Up / Log In" sub="aws-amplify v6" />
