@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { apiFetch } from '../lib/api';
+import { useMarketWS, type PriceUpdate } from '../hooks/useMarketWS';
 
 interface Market {
   marketId: string;
@@ -60,6 +61,27 @@ export function MarketDetailPage() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
+  const [flashSide, setFlashSide] = useState<'YES' | 'NO' | 'BOTH' | null>(null);
+  const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handlePriceUpdate = useCallback((update: PriceUpdate) => {
+    setMarket((prev) => {
+      if (!prev) return prev;
+      const yesMoved = update.yesPrice !== prev.yesPrice;
+      const noMoved = update.noPrice !== prev.noPrice;
+      const newSide: 'YES' | 'NO' | 'BOTH' | null =
+        yesMoved && noMoved ? 'BOTH' : yesMoved ? 'YES' : noMoved ? 'NO' : null;
+      if (newSide) {
+        if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
+        setFlashSide(newSide);
+        flashTimerRef.current = setTimeout(() => setFlashSide(null), 400);
+      }
+      return { ...prev, yesPrice: update.yesPrice, noPrice: update.noPrice };
+    });
+  }, []);
+
+  useMarketWS(marketId, idToken, handlePriceUpdate);
+
   useEffect(() => {
     let cancelled = false;
     async function fetchMarket() {
@@ -95,6 +117,12 @@ export function MarketDetailPage() {
     }, 1000);
     return () => clearInterval(interval);
   }, [market]);
+
+  useEffect(() => {
+    return () => {
+      if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
+    };
+  }, []);
 
   if (loading) {
     return (
@@ -196,11 +224,19 @@ export function MarketDetailPage() {
           <p className="mt-2 text-base text-gray-500">{market.description}</p>
         )}
 
-        <div className="mt-6 flex items-center gap-4">
-          <span className="rounded px-6 py-3 text-lg font-semibold bg-classhi-green text-white">
+        <div aria-live="polite" className="mt-6 flex items-center gap-4">
+          <span
+            className={`rounded px-6 py-3 text-lg font-semibold bg-classhi-green text-white ${
+              flashSide === 'YES' || flashSide === 'BOTH' ? 'animate-flash-green' : ''
+            }`}
+          >
             YES {market.yesPrice}¢
           </span>
-          <span className="rounded px-6 py-3 text-lg font-semibold bg-classhi-coral text-white">
+          <span
+            className={`rounded px-6 py-3 text-lg font-semibold bg-classhi-coral text-white ${
+              flashSide === 'NO' || flashSide === 'BOTH' ? 'animate-flash-coral' : ''
+            }`}
+          >
             NO {market.noPrice}¢
           </span>
         </div>
