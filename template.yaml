@@ -398,6 +398,35 @@ Resources:
         External:
           - "@aws-sdk/*"
 
+  GetLeaderboardFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/src/handlers/get-leaderboard/
+      Handler: handler.handler
+      Environment:
+        Variables:
+          USERS_TABLE: !Ref UsersTable
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref UsersTable
+      Events:
+        GetLeaderboard:
+          Type: HttpApi
+          Properties:
+            Path: /leaderboard
+            Method: GET
+            ApiId: !Ref HttpApi
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: "es2022"
+        Sourcemap: true
+        EntryPoints:
+          - handler.ts
+        External:
+          - "@aws-sdk/*"
+
   GetMarketFunction:
     Type: AWS::Serverless::Function
     Properties:
