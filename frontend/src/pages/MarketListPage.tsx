@@ -43,27 +43,23 @@ function MarketCard({ market, onClick }: { market: Market; onClick: () => void }
       {/* Outcomes */}
       <div className="flex flex-col gap-2">
         {/* YES row */}
-        <div className="flex items-center justify-between">
-          <div className="flex flex-col gap-1">
-            <span className="text-sm font-medium text-[#111111] dark:text-white">YES</span>
-            <div className="h-[3px] w-24 rounded-full bg-gray-200 dark:bg-[#28282C]">
-              <div className="h-full rounded-full bg-classhi-green" style={{ width: `${market.yesPrice}%` }} />
-            </div>
+        <div className="flex items-center gap-3">
+          <span className="w-7 shrink-0 text-sm font-medium text-[#111111] dark:text-white">YES</span>
+          <div className="flex-1 h-[3px] rounded-full bg-gray-200 dark:bg-[#28282C]">
+            <div className="h-full rounded-full bg-classhi-green" style={{ width: `${market.yesPrice}%` }} />
           </div>
-          <span className="rounded-full border border-classhi-green px-3 py-1 text-sm font-semibold text-classhi-green">
+          <span className="shrink-0 rounded-full border border-classhi-green px-3 py-1 text-sm font-semibold text-classhi-green">
             {market.yesPrice}%
           </span>
         </div>
 
         {/* NO row */}
-        <div className="flex items-center justify-between">
-          <div className="flex flex-col gap-1">
-            <span className="text-sm font-medium text-[#111111] dark:text-white">NO</span>
-            <div className="h-[3px] w-24 rounded-full bg-gray-200 dark:bg-[#28282C]">
-              <div className="h-full rounded-full bg-classhi-coral" style={{ width: `${market.noPrice}%` }} />
-            </div>
+        <div className="flex items-center gap-3">
+          <span className="w-7 shrink-0 text-sm font-medium text-[#111111] dark:text-white">NO</span>
+          <div className="flex-1 h-[3px] rounded-full bg-gray-200 dark:bg-[#28282C]">
+            <div className="h-full rounded-full bg-classhi-coral" style={{ width: `${market.noPrice}%` }} />
           </div>
-          <span className="rounded-full border border-classhi-coral px-3 py-1 text-sm font-semibold text-classhi-coral">
+          <span className="shrink-0 rounded-full border border-classhi-coral px-3 py-1 text-sm font-semibold text-classhi-coral">
             {market.noPrice}%
           </span>
         </div>

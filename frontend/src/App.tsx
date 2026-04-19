@@ -30,7 +30,7 @@ export const router = createBrowserRouter([
         element: <RequireAuth />,
         children: [
           { path: '/', element: <Navigate to="/markets" replace /> },
-          { path: '/home', element: <Navigate to="/markets" replace /> },
+          { path: '/home', element: <HomePage /> },
           { path: '/markets', element: <MarketListPage /> },
           { path: '/markets/:marketId', element: <MarketDetailPage /> },
           { path: '/admin/create-market', element: <CreateMarketPage /> },

@@ -13,13 +13,13 @@ export function NavBar({ onSignOut }: NavBarProps) {
   const { email, balance } = useAuth();
 
   return (
-    <nav className="border-b border-gray-200 bg-white px-6 py-3 dark:border-dark-border dark:bg-dark-card">
-      <div className="mx-auto flex max-w-5xl items-center justify-between">
+    <nav className="border-b border-gray-200 bg-white dark:border-dark-border dark:bg-dark-card">
+      <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-3">
         <img
           src="/logo.png"
           alt="Classhi"
           className="h-12 cursor-pointer"
-          onClick={() => navigate('/markets')}
+          onClick={() => navigate('/home')}
         />
 
         <div className="flex items-center gap-4">
