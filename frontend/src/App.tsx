@@ -1,10 +1,13 @@
-import { createBrowserRouter, Outlet } from 'react-router-dom';
+import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom';
 import { AuthProvider } from './auth/AuthContext';
 import { RequireAuth } from './auth/RequireAuth';
 import { LoginPage } from './pages/LoginPage';
 import { SignUpPage } from './pages/SignUpPage';
 import { ConfirmPage } from './pages/ConfirmPage';
 import { HomePage } from './pages/HomePage';
+import { MarketListPage } from './pages/MarketListPage';
+import { MarketDetailPage } from './pages/MarketDetailPage';
+import { CreateMarketPage } from './pages/CreateMarketPage';
 
 function RootLayout() {
   return (
@@ -24,8 +27,13 @@ export const router = createBrowserRouter([
       {
         element: <RequireAuth />,
         children: [
-          { path: '/home', element: <HomePage /> },
-          { path: '/', element: <HomePage /> },
+          { path: '/', element: <Navigate to="/markets" replace /> },
+          { path: '/home', element: <Navigate to="/markets" replace /> },
+          { path: '/markets', element: <MarketListPage /> },
+          { path: '/markets/:marketId', element: <MarketDetailPage /> },
+          { path: '/admin/create-market', element: <CreateMarketPage /> },
+          // Keep HomePage for any direct references, it self-redirects
+          { path: '/homepage', element: <HomePage /> },
         ],
       },
     ],
