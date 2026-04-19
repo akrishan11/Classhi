@@ -49,7 +49,7 @@ type Side = 'YES' | 'NO' | null;
 export function MarketDetailPage() {
   const { marketId } = useParams<{ marketId: string }>();
   const navigate = useNavigate();
-  const { idToken, balance, isAdmin, refreshSession } = useAuth();
+  const { idToken, email, balance, isAdmin, signOut, refreshSession } = useAuth();
   const [market, setMarket] = useState<Market | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
@@ -66,6 +66,11 @@ export function MarketDetailPage() {
 
   const [resolving, setResolving] = useState<'YES' | 'NO' | null>(null);
   const [resolveError, setResolveError] = useState<string | null>(null);
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/login', { replace: true });
+  };
 
   const handlePriceUpdate = useCallback((update: PriceUpdate) => {
     setMarket((prev) => {
@@ -242,6 +247,56 @@ export function MarketDetailPage() {
 
   return (
     <div className="min-h-screen bg-classhi-bg">
+      <nav className="border-b border-gray-200 bg-white px-6 py-3">
+        <div className="mx-auto flex max-w-4xl items-center justify-between">
+          <span
+            className="cursor-pointer text-lg font-semibold text-[#111111]"
+            onClick={() => navigate('/markets')}
+          >
+            Classhi
+          </span>
+          <div className="flex items-center gap-4">
+            {email && (
+              <span className="text-sm text-gray-500">
+                {email}
+                {balance !== null && (
+                  <span className="ml-2 font-semibold text-[#111111]">
+                    — ${balance.toLocaleString()}
+                  </span>
+                )}
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={() => navigate('/markets')}
+              className="text-sm font-semibold text-[#111111] hover:underline"
+            >
+              Markets
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate('/portfolio')}
+              className="text-sm font-semibold text-[#111111] hover:underline"
+            >
+              Portfolio
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate('/leaderboard')}
+              className="text-sm font-semibold text-[#111111] hover:underline"
+            >
+              Leaderboard
+            </button>
+            <button
+              type="button"
+              onClick={handleSignOut}
+              className="text-sm font-semibold text-classhi-coral hover:underline"
+            >
+              Log out
+            </button>
+          </div>
+        </div>
+      </nav>
       <main className="mx-auto max-w-2xl px-6 py-8">
         <button
           type="button"

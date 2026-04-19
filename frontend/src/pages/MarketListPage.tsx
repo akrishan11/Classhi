@@ -88,6 +88,13 @@ export function MarketListPage() {
             </button>
             <button
               type="button"
+              onClick={() => navigate('/leaderboard')}
+              className="text-sm font-semibold text-[#111111] hover:underline"
+            >
+              Leaderboard
+            </button>
+            <button
+              type="button"
               onClick={handleSignOut}
               className="text-sm font-semibold text-classhi-coral hover:underline"
             >
